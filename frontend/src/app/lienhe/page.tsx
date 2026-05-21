@@ -35,13 +35,7 @@ function validateAll(form: FormState) {
   return errors;
 }
 
-function getErrorMessageFromResponse(data: unknown): string | null {
-  if (data && typeof data === "object" && "error" in data) {
-    const errValue = (data as Record<string, unknown>)["error"];
-    return typeof errValue === "string" ? errValue : null;
-  }
-  return null;
-}
+
 
 export default function ContactPage() {
   const [form, setForm] = useState<FormState>({
@@ -121,31 +115,32 @@ export default function ContactPage() {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
 
-      const res = await fetch("/api/contact", {
+      // Gửi đến Netlify Forms (application/x-www-form-urlencoded)
+      const body = new URLSearchParams({
+        "form-name": "contact",
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        subject: form.subject,
+        message: form.message,
+      }).toString();
+
+      const res = await fetch("/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
         signal: controller.signal,
       });
 
       clearTimeout(timeout);
 
-      let data: unknown = null;
-      try {
-        data = await res.json();
-      } catch {
-        data = null;
-      }
-
       if (!res.ok) {
-        const serverErr =
-          getErrorMessageFromResponse(data) ?? `Lỗi: ${res.status}`;
-        setErrorMsg(serverErr);
+        setErrorMsg(`Lỗi khi gửi: ${res.status}. Vui lòng thử lại.`);
         return;
       }
 
       setSuccessMsg(
-        "Gửi liên hệ thành công. Cảm ơn bạn — chúng tôi sẽ liên hệ sớm."
+        "Gửi liên hệ thành công! Cảm ơn bạn — chúng tôi sẽ liên hệ sớm."
       );
       setForm({ name: "", email: "", phone: "", subject: "", message: "" });
       try {
@@ -252,7 +247,22 @@ export default function ContactPage() {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+              <form
+                onSubmit={handleSubmit}
+                name="contact"
+                data-netlify="true"
+                data-netlify-honeypot="bot-field"
+                className="space-y-4"
+                noValidate
+              >
+                {/* Hidden inputs bắt buộc cho Netlify Forms */}
+                <input type="hidden" name="form-name" value="contact" />
+                <p hidden>
+                  <label>
+                    Không điền vào đây:{" "}
+                    <input name="bot-field" tabIndex={-1} autoComplete="off" />
+                  </label>
+                </p>
                 <div>
                   <label
                     htmlFor="name"
